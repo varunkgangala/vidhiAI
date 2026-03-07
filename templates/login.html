@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login – VidhiAI</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<nav>
+  <a href="{{ url_for('index') }}" class="nav-brand">
+    <div class="brand-icon">⚖️</div>
+    <div>
+      <div class="brand-name">VidhiAI</div>
+      <div class="brand-tag">Legal Intelligence</div>
+    </div>
+  </a>
+  <ul class="nav-links">
+    <li><a href="{{ url_for('index') }}">Home</a></li>
+    <li><a href="{{ url_for('auth.signup') }}" class="nav-btn">Sign Up</a></li>
+  </ul>
+</nav>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="flash-container">
+      {% for cat, msg in messages %}
+        <div class="flash {{ cat }}">{{ msg }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+<div class="auth-wrapper">
+  <div class="auth-card">
+    <div class="auth-header">
+      <div class="logo">Vidhi<span>AI</span></div>
+      <p>Sign in to your account</p>
+    </div>
+    <div class="auth-body">
+      <form method="POST" action="{{ url_for('auth.login') }}">
+        <div class="form-group">
+          <label class="form-label">Email Address</label>
+          <input type="email" name="email" class="form-control"
+                 placeholder="you@example.com" required autocomplete="email">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" name="password" class="form-control"
+                 placeholder="••••••••" required autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%;margin-top:0.5rem">
+          Sign In →
+        </button>
+      </form>
+      <div class="auth-footer">
+        Don't have an account? <a href="{{ url_for('auth.signup') }}">Create one free</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

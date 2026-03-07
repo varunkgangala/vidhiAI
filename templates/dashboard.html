@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard – VidhiAI</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<nav>
+  <a href="{{ url_for('index') }}" class="nav-brand">
+    <div class="brand-icon">⚖️</div>
+    <div>
+      <div class="brand-name">VidhiAI</div>
+      <div class="brand-tag">Legal Intelligence</div>
+    </div>
+  </a>
+  <ul class="nav-links">
+    <li><a href="{{ url_for('dashboard') }}" class="active">Dashboard</a></li>
+    <li><a href="{{ url_for('analyze') }}">Analyze</a></li>
+    <li><a href="{{ url_for('history') }}">History</a></li>
+    <li><a href="{{ url_for('auth.logout') }}" class="nav-btn">Logout</a></li>
+  </ul>
+</nav>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="flash-container">
+      {% for cat, msg in messages %}
+        <div class="flash {{ cat }}">{{ msg }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+<div class="page-container">
+  <div class="page-header flex-between">
+    <div>
+      <h1>Welcome, {{ session.username }} 👋</h1>
+      <p>Your legal compliance overview</p>
+    </div>
+    <a href="{{ url_for('analyze') }}" class="btn btn-gold">+ New Analysis</a>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-icon" style="background:rgba(13,27,42,0.08)">📊</div>
+      <div class="stat-label">Total Analyses</div>
+      <div class="stat-value">{{ stats['total'] or 0 }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:rgba(30,132,73,0.12)">✅</div>
+      <div class="stat-label">Avg. Compliance</div>
+      <div class="stat-value">
+        {% if stats['avg_score'] %}{{ "%.0f"|format(stats['avg_score']) }}%{% else %}—{% endif %}
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:rgba(192,57,43,0.12)">⚠️</div>
+      <div class="stat-label">High-Risk Docs</div>
+      <div class="stat-value">{{ stats['high_risk'] or 0 }}</div>
+    </div>
+  </div>
+
+  <!-- Recent Analyses -->
+  <div class="card">
+    <div class="card-header flex-between">
+      <h2>Recent Analyses</h2>
+      <a href="{{ url_for('history') }}" style="color:var(--gold);font-size:0.85rem;text-decoration:none;font-weight:600">View All →</a>
+    </div>
+    <div class="card-body" style="padding:0">
+      {% if recent %}
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Document</th>
+              <th>Score</th>
+              <th>Risk</th>
+              <th>Date</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in recent %}
+            <tr data-href="{{ url_for('report_view', analysis_id=r['analysis_id']) }}">
+              <td>
+                <span style="font-weight:600;color:var(--navy)">{{ r['document_name'][:50] }}</span>
+              </td>
+              <td>
+                <div style="display:flex;align-items:center;gap:0.5rem">
+                  <div style="height:6px;width:60px;background:#e0d9cc;border-radius:3px;overflow:hidden">
+                    <div style="height:100%;width:{{ r['compliance_score'] }}%;background:
+                      {% if r['compliance_score'] >= 75 %}var(--green-risk)
+                      {% elif r['compliance_score'] >= 50 %}var(--amber-risk)
+                      {% else %}var(--red-risk){% endif %};border-radius:3px"></div>
+                  </div>
+                  <span style="font-weight:700;font-size:0.9rem">{{ "%.0f"|format(r['compliance_score']) }}%</span>
+                </div>
+              </td>
+              <td>
+                <span class="badge badge-{{ r['risk_level']|lower }}">{{ r['risk_level'] }}</span>
+              </td>
+              <td style="color:var(--text-muted);font-size:0.85rem">{{ r['timestamp'][:10] }}</td>
+              <td><a href="{{ url_for('report_view', analysis_id=r['analysis_id']) }}" class="btn btn-sm btn-outline">View</a></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div class="empty-state">
+          <div class="empty-icon">📄</div>
+          <h3>No Analyses Yet</h3>
+          <p>Upload your first contract to get started.</p>
+          <a href="{{ url_for('analyze') }}" class="btn btn-gold mt-2">Analyze a Contract</a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Quick Start -->
+  <div style="margin-top:2rem;background:linear-gradient(135deg,var(--navy),var(--navy-light));border-radius:var(--radius-lg);padding:2rem;color:white;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap">
+    <div>
+      <h3 style="font-family:'Playfair Display',serif;font-size:1.2rem;margin-bottom:0.4rem">Ready to analyze a contract?</h3>
+      <p style="color:rgba(255,255,255,0.65);font-size:0.9rem">Upload PDF, DOCX, or TXT — or paste text directly.</p>
+    </div>
+    <a href="{{ url_for('analyze') }}" class="btn btn-gold btn-lg">Start Analysis →</a>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
