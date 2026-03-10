@@ -1,13 +1,26 @@
-import os
 import sys
+import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# Load .env file automatically
+from dotenv import load_dotenv
+load_dotenv()
+
 import json
 from datetime import datetime
 from flask import (
     Flask, render_template, request, redirect,
-    url_for, session, flash, jsonify
+    url_for, session, flash
 )
-from database.models import init_db, get_db
+from database.models import (
+    init_db,
+    save_analysis,
+    get_recent_analyses,
+    get_all_analyses,
+    get_analysis_by_id,
+    delete_analysis,
+    get_user_stats,
+)
 from auth.auth_routes import auth_bp
 from analysis.contract_parser import parse_contract, is_allowed_file
 from rag.law_fetcher import fetch_relevant_laws
@@ -45,21 +58,8 @@ def index():
 @app.route("/dashboard")
 @login_required
 def dashboard():
-    db = get_db()
-    recent = db.execute(
-        """SELECT * FROM analysis_history
-           WHERE user_id = ?
-           ORDER BY timestamp DESC LIMIT 5""",
-        (session["user_id"],)
-    ).fetchall()
-    stats = db.execute(
-        """SELECT COUNT(*) as total,
-                  AVG(compliance_score) as avg_score,
-                  SUM(CASE WHEN risk_level='High' THEN 1 ELSE 0 END) as high_risk
-           FROM analysis_history WHERE user_id = ?""",
-        (session["user_id"],)
-    ).fetchone()
-    db.close()
+    recent = get_recent_analyses(session["user_id"], limit=5)
+    stats  = get_user_stats(session["user_id"])
     return render_template("dashboard.html", recent=recent, stats=stats)
 
 
@@ -73,7 +73,7 @@ def analyze():
     document_name = "Pasted Text"
 
     uploaded_file = request.files.get("contract_file")
-    pasted_text = request.form.get("contract_text", "").strip()
+    pasted_text   = request.form.get("contract_text", "").strip()
 
     if uploaded_file and uploaded_file.filename:
         filename = uploaded_file.filename
@@ -88,7 +88,7 @@ def analyze():
             return render_template("analyze.html")
     elif pasted_text:
         contract_text = pasted_text
-        document_name = "Pasted Contract — " + datetime.now().strftime("%Y-%m-%d %H:%M")
+        document_name = "Pasted Contract - " + datetime.now().strftime("%Y-%m-%d %H:%M")
     else:
         flash("Please upload a file or paste contract text.", "warning")
         return render_template("analyze.html")
@@ -99,55 +99,32 @@ def analyze():
 
     # RAG Pipeline
     law_data = fetch_relevant_laws(contract_text)
-    prompt = build_analysis_prompt(contract_text, law_data["laws"], law_data["contract_type"])
-    result = run_llm_analysis(prompt)
+    prompt   = build_analysis_prompt(contract_text, law_data["laws"], law_data["contract_type"])
+    result   = run_llm_analysis(prompt)
 
-    # Persist to DB
+    # Save to Supabase
     analysis_json = json.dumps(result)
-    db = get_db()
-    cursor = db.execute(
-        """INSERT INTO analysis_history
-           (user_id, document_name, compliance_score, risk_level, analysis_text, timestamp)
-           VALUES (?, ?, ?, ?, ?, ?)""",
-        (
-            session["user_id"],
-            document_name,
-            result.get("compliance_score", 0),
-            result.get("risk_level", "Unknown"),
-            analysis_json,
-            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        )
+    record = save_analysis(
+        user_id          = session["user_id"],
+        document_name    = document_name,
+        compliance_score = result.get("compliance_score", 0),
+        risk_level       = result.get("risk_level", "Unknown"),
+        analysis_text    = analysis_json,
     )
-    analysis_id = cursor.lastrowid
-    db.commit()
-    db.close()
-
-    return redirect(url_for("report_view", analysis_id=analysis_id))
+    return redirect(url_for("report_view", analysis_id=record["analysis_id"]))
 
 
 @app.route("/history")
 @login_required
 def history():
-    db = get_db()
-    records = db.execute(
-        """SELECT * FROM analysis_history
-           WHERE user_id = ?
-           ORDER BY timestamp DESC""",
-        (session["user_id"],)
-    ).fetchall()
-    db.close()
+    records = get_all_analyses(session["user_id"])
     return render_template("history.html", records=records)
 
 
 @app.route("/report/<int:analysis_id>")
 @login_required
 def report_view(analysis_id):
-    db = get_db()
-    record = db.execute(
-        "SELECT * FROM analysis_history WHERE analysis_id = ? AND user_id = ?",
-        (analysis_id, session["user_id"])
-    ).fetchone()
-    db.close()
+    record = get_analysis_by_id(analysis_id, session["user_id"])
     if not record:
         flash("Report not found.", "error")
         return redirect(url_for("history"))
@@ -161,13 +138,7 @@ def report_view(analysis_id):
 @app.route("/delete_report/<int:analysis_id>", methods=["POST"])
 @login_required
 def delete_report(analysis_id):
-    db = get_db()
-    db.execute(
-        "DELETE FROM analysis_history WHERE analysis_id = ? AND user_id = ?",
-        (analysis_id, session["user_id"])
-    )
-    db.commit()
-    db.close()
+    delete_analysis(analysis_id, session["user_id"])
     flash("Report deleted.", "info")
     return redirect(url_for("history"))
 

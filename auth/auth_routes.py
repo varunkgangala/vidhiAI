@@ -1,5 +1,9 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session, flash
-from database.models import get_db
+from database.models import (
+    get_user_by_email,
+    get_user_by_email_or_username,
+    create_user,
+)
 from auth.auth_utils import hash_password, verify_password, validate_email, validate_password
 
 auth_bp = Blueprint("auth", __name__)
@@ -10,13 +14,11 @@ def login():
     if "user_id" in session:
         return redirect(url_for("dashboard"))
     if request.method == "POST":
-        email = request.form.get("email", "").strip().lower()
+        email    = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
-        db = get_db()
-        user = db.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
-        db.close()
+        user = get_user_by_email(email)
         if user and verify_password(password, user["password"]):
-            session["user_id"] = user["user_id"]
+            session["user_id"]  = user["user_id"]
             session["username"] = user["username"]
             flash("Welcome back, " + user["username"] + "!", "success")
             return redirect(url_for("dashboard"))
@@ -30,9 +32,9 @@ def signup():
         return redirect(url_for("dashboard"))
     if request.method == "POST":
         username = request.form.get("username", "").strip()
-        email = request.form.get("email", "").strip().lower()
+        email    = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
-        confirm = request.form.get("confirm_password", "")
+        confirm  = request.form.get("confirm_password", "")
 
         if not username or len(username) < 3:
             flash("Username must be at least 3 characters.", "error")
@@ -48,24 +50,14 @@ def signup():
             flash("Passwords do not match.", "error")
             return render_template("signup.html")
 
-        db = get_db()
-        existing = db.execute(
-            "SELECT user_id FROM users WHERE email = ? OR username = ?", (email, username)
-        ).fetchone()
+        existing = get_user_by_email_or_username(email, username)
         if existing:
-            db.close()
             flash("Email or username already registered.", "error")
             return render_template("signup.html")
 
         hashed = hash_password(password)
-        db.execute(
-            "INSERT INTO users (username, email, password) VALUES (?, ?, ?)",
-            (username, email, hashed),
-        )
-        db.commit()
-        user = db.execute("SELECT * FROM users WHERE email = ?", (email,)).fetchone()
-        db.close()
-        session["user_id"] = user["user_id"]
+        user   = create_user(username, email, hashed)
+        session["user_id"]  = user["user_id"]
         session["username"] = user["username"]
         flash("Account created! Welcome, " + username + ".", "success")
         return redirect(url_for("dashboard"))
