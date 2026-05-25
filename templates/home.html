@@ -14,7 +14,7 @@
     <div class="brand-icon">⚖️</div>
     <div>
       <div class="brand-name">VidhiAI</div>
-      <div class="brand-tag">Legal Intelligence</div>
+      
     </div>
   </a>
   <ul class="nav-links">
@@ -44,18 +44,17 @@
 <!-- HERO -->
 <section class="hero">
   <div class="hero-content">
-    <div class="hero-eyebrow">⚖️ AI-Powered Legal Analysis</div>
-    <h1>Contract Compliance<br><span>Made Intelligent</span></h1>
+    
+    <h1>Vidhi<span>Ai</span></h1>
     <p>
-      VidhiAI analyses your contracts against Indian and international legal frameworks,
-      identifies risks, missing clauses, and compliance gaps — in seconds.
+      AI based Legal Advisor System for Contract Analysis and Regulatory Compliance Using NLP
     </p>
     <div class="hero-actions">
       {% if session.get('user_id') %}
         <a href="{{ url_for('analyze') }}" class="btn btn-gold btn-lg">Analyze a Contract</a>
         <a href="{{ url_for('dashboard') }}" class="btn btn-outline" style="color:white;border-color:rgba(255,255,255,0.4)">Go to Dashboard</a>
       {% else %}
-        <a href="{{ url_for('auth.signup') }}" class="btn btn-gold btn-lg">Start Free Analysis</a>
+        <a href="{{ url_for('auth.signup') }}" class="btn btn-gold btn-lg">Register</a>
         <a href="{{ url_for('auth.login') }}" class="btn btn-outline" style="color:white;border-color:rgba(255,255,255,0.4)">Login</a>
       {% endif %}
     </div>
@@ -65,32 +64,26 @@
 <!-- FEATURES -->
 <div class="features-grid">
   <div class="feature-card">
-    <div class="feature-icon">📄</div>
     <h3>Multi-Format Support</h3>
     <p>Upload PDF, DOCX, or TXT contracts, or simply paste the text directly for instant analysis.</p>
   </div>
   <div class="feature-card">
-    <div class="feature-icon">🔍</div>
     <h3>RAG-Powered Analysis</h3>
     <p>Our pipeline retrieves relevant legal statutes and regulations, then applies them to your specific contract.</p>
   </div>
-  <div class="feature-card">
-    <div class="feature-icon">⚠️</div>
+  <div class="feature-card"> 
     <h3>Risk Detection</h3>
     <p>Classifies risks as High, Medium, or Low across specific contract sections with plain-English explanations.</p>
   </div>
-  <div class="feature-card">
-    <div class="feature-icon">📊</div>
+  <div class="feature-card"> 
     <h3>Compliance Scoring</h3>
     <p>Receives a 0–100 compliance score based on clause completeness, legality, clarity, and formal requirements.</p>
   </div>
   <div class="feature-card">
-    <div class="feature-icon">⚖️</div>
     <h3>Law References</h3>
     <p>Every finding is linked to specific acts, sections, and regulations under Indian and international law.</p>
   </div>
   <div class="feature-card">
-    <div class="feature-icon">📁</div>
     <h3>Analysis History</h3>
     <p>All your reports are stored securely. Review, compare, and revisit past analyses at any time.</p>
   </div>
@@ -98,7 +91,7 @@
 
 <!-- FOOTER -->
 <footer style="background:var(--navy);color:rgba(255,255,255,0.5);text-align:center;padding:1.5rem;font-size:0.85rem;margin-top:2rem;">
-  © 2024 VidhiAI – For informational purposes only. Not a substitute for professional legal advice.
+  
 </footer>
 
 <script src="{{ url_for('static', filename='js/main.js') }}"></script>

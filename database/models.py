@@ -13,8 +13,22 @@ def get_client():
             "Supabase credentials missing.\n"
             "Please set SUPABASE_URL and SUPABASE_KEY in your .env file."
         )
+
     from supabase import create_client
+
     return create_client(SUPABASE_URL, SUPABASE_KEY)
+    # if not SUPABASE_URL or not SUPABASE_KEY:
+    #     raise RuntimeError(
+    #         "Supabase credentials missing.\n"
+    #         "Please set SUPABASE_URL and SUPABASE_KEY in your .env file."
+    #     )
+    # from supabase import create_client, ClientOptions
+    # options = ClientOptions(
+    #     postgrest_client_timeout=30,
+    #     storage_client_timeout=30,
+    # )
+    # from supabase import create_client
+    # return create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
 def init_db():
@@ -31,9 +45,13 @@ def init_db():
 # ── User helpers ─────────────────────────────────────────────────────────────
 
 def get_user_by_email(email: str) -> dict | None:
-    client = get_client()
-    res = client.table("users").select("*").eq("email", email).limit(1).execute()
-    return res.data[0] if res.data else None
+    try:
+        client = get_client()
+        res = client.table("users").select("*").eq("email", email).limit(1).execute()
+        return res.data[0] if res.data else None
+    except Exception as e:
+        print(f"[VidhiAI DB] Error getting user: {e}")
+        raise RuntimeError(f"Database connection failed: {e}")
 
 
 def get_user_by_id(user_id: int) -> dict | None:

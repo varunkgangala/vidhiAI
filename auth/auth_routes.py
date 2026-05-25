@@ -16,13 +16,17 @@ def login():
     if request.method == "POST":
         email    = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
-        user = get_user_by_email(email)
-        if user and verify_password(password, user["password"]):
-            session["user_id"]  = user["user_id"]
-            session["username"] = user["username"]
-            flash("Welcome back, " + user["username"] + "!", "success")
-            return redirect(url_for("dashboard"))
-        flash("Invalid email or password.", "error")
+        try:
+            user = get_user_by_email(email)
+            if user and verify_password(password, user["password"]):
+                session["user_id"]  = user["user_id"]
+                session["username"] = user["username"]
+                flash("Welcome back, " + user["username"] + "!", "success")
+                return redirect(url_for("dashboard"))
+            flash("Invalid email or password.", "error")
+        except Exception as e:
+            flash("Database connection failed. Please check your Supabase project is active.", "error")
+            print(f"[VidhiAI] Login error: {e}")
     return render_template("login.html")
 
 

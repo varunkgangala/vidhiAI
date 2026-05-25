@@ -3,16 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Analysis History – VidhiAI</title>
+  <title>Analysis History - VidhiAI</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
 <nav>
   <a href="{{ url_for('index') }}" class="nav-brand">
-    <div class="brand-icon">⚖️</div>
+    <div class="brand-icon">V</div>
     <div>
       <div class="brand-name">VidhiAI</div>
-      <div class="brand-tag">Legal Intelligence</div>
     </div>
   </a>
   <ul class="nav-links">
@@ -22,7 +21,7 @@
     <li><a href="{{ url_for('auth.logout') }}" class="nav-btn">Logout</a></li>
   </ul>
 </nav>
-
+ 
 {% with messages = get_flashed_messages(with_categories=true) %}
   {% if messages %}
     <div class="flash-container">
@@ -32,16 +31,16 @@
     </div>
   {% endif %}
 {% endwith %}
-
+ 
 <div class="page-container">
   <div class="page-header flex-between">
     <div>
       <h1>Analysis History</h1>
-      <p>All contract analyses for your account — click any row to view the full report.</p>
+      <p>All contract analyses for your account - click any row to view the full report.</p>
     </div>
     <a href="{{ url_for('analyze') }}" class="btn btn-gold">+ New Analysis</a>
   </div>
-
+ 
   <div class="card">
     <div class="card-body" style="padding:0">
       {% if records %}
@@ -52,7 +51,7 @@
               <th>Document Name</th>
               <th>Compliance Score</th>
               <th>Risk Level</th>
-              <th>Date & Time</th>
+              <th>Date &amp; Time</th>
               <th style="width:80px">Action</th>
             </tr>
           </thead>
@@ -62,7 +61,7 @@
               <td style="color:var(--text-muted);font-size:0.85rem">{{ r['analysis_id'] }}</td>
               <td>
                 <span style="font-weight:600;color:var(--navy)">
-                  {{ r['document_name'][:60] }}{% if r['document_name']|length > 60 %}…{% endif %}
+                  {{ r['document_name'][:60] }}{% if r['document_name']|length > 60 %}...{% endif %}
                 </span>
               </td>
               <td>
@@ -78,7 +77,6 @@
               </td>
               <td>
                 <span class="badge badge-{{ r['risk_level']|lower }}">
-                  {% if r['risk_level'] == 'High' %}🔴{% elif r['risk_level'] == 'Medium' %}🟡{% else %}🟢{% endif %}
                   {{ r['risk_level'] }}
                 </span>
               </td>
@@ -96,7 +94,7 @@
         </table>
       {% else %}
         <div class="empty-state">
-          <div class="empty-icon">📂</div>
+          <div class="empty-icon" style="font-size:2.5rem;font-weight:700;color:var(--navy);font-family:'Playfair Display',serif">H</div>
           <h3>No History Yet</h3>
           <p>Your analysis reports will appear here once you analyze a contract.</p>
           <a href="{{ url_for('analyze') }}" class="btn btn-gold mt-2">Analyze Your First Contract</a>
@@ -105,7 +103,8 @@
     </div>
   </div>
 </div>
-
+ 
 <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>
+ 

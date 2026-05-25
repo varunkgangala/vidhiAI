@@ -2,7 +2,6 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-# Load .env file automatically
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -13,24 +12,21 @@ from flask import (
     url_for, session, flash
 )
 from database.models import (
-    init_db,
-    save_analysis,
-    get_recent_analyses,
-    get_all_analyses,
-    get_analysis_by_id,
-    delete_analysis,
-    get_user_stats,
+    init_db, save_analysis, get_recent_analyses,
+    get_all_analyses, get_analysis_by_id,
+    delete_analysis, get_user_stats,
 )
 from auth.auth_routes import auth_bp
 from analysis.contract_parser import parse_contract, is_allowed_file
+from analysis.nlp_engine import run_nlp_analysis
 from rag.law_fetcher import fetch_relevant_laws
 from rag.prompt_builder import build_analysis_prompt
 from rag.llm_engine import run_llm_analysis
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "vidhiai-secret-key-change-in-prod-2024")
-app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024  # 16 MB
-app.config["UPLOAD_FOLDER"] = os.path.join("data", "uploads")
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
+app.config["UPLOAD_FOLDER"]      = os.path.join("data", "uploads")
 
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 os.makedirs(os.path.join("data", "law_cache"), exist_ok=True)
@@ -84,7 +80,7 @@ def analyze():
             contract_text = parse_contract(uploaded_file.stream, filename)
             document_name = filename
         except Exception as e:
-            flash(f"Could not read file: {e}", "error")
+            flash(str(e), "error")
             return render_template("analyze.html")
     elif pasted_text:
         contract_text = pasted_text
@@ -94,15 +90,44 @@ def analyze():
         return render_template("analyze.html")
 
     if len(contract_text.strip()) < 50:
-        flash("Contract text is too short to analyze.", "warning")
+        flash("Contract text is too short to analyze (minimum 50 characters).", "warning")
         return render_template("analyze.html")
 
-    # RAG Pipeline
-    law_data = fetch_relevant_laws(contract_text)
-    prompt   = build_analysis_prompt(contract_text, law_data["laws"], law_data["contract_type"])
-    result   = run_llm_analysis(prompt)
+    #STEP 1: NLP Analysis 
+    print("\n[VidhiAI] === STEP 1: NLP ANALYSIS ===")
+    law_data   = fetch_relevant_laws(contract_text)
+    nlp_result = run_nlp_analysis(contract_text, law_data["contract_type"])
 
-    # Save to Supabase
+    #  STEP 2: Build Prompt with NLP results 
+    print("\n[VidhiAI] === STEP 2: BUILD PROMPT ===")
+    prompt = build_analysis_prompt(
+        contract_text,
+        law_data["laws"],
+        law_data["contract_type"],
+        nlp_result
+    )
+
+    #STEP 3: LLM Analysis (explanation generation) 
+    print("\n[VidhiAI] === STEP 3: LLM EXPLANATION ===")
+    result = run_llm_analysis(
+        prompt,
+        nlp_result      = nlp_result,
+        contract_type   = law_data["contract_type"]
+    )
+
+    # STEP 4: Enrich result with NLP data 
+    result["nlp_data"] = {
+        "entities":      nlp_result.get("entities", {}),
+        "clauses":       {k: v["present"] for k, v in nlp_result.get("clauses", {}).items()},
+        "obligations":   nlp_result.get("obligations", []),
+        "score_breakdown": nlp_result.get("score_data", {}),
+        "nlp_available": nlp_result.get("nlp_available", False),
+        "word_count":    nlp_result.get("score_data", {}).get("word_count", 0),
+        "law_source":    law_data.get("source", "database"),
+    }
+
+    #STEP 5: Save to Supabase
+    print("\n[VidhiAI] === STEP 4: SAVE TO SUPABASE ===")
     analysis_json = json.dumps(result)
     record = save_analysis(
         user_id          = session["user_id"],
@@ -111,6 +136,7 @@ def analyze():
         risk_level       = result.get("risk_level", "Unknown"),
         analysis_text    = analysis_json,
     )
+    print(f"[VidhiAI] Saved report ID: {record['analysis_id']}")
     return redirect(url_for("report_view", analysis_id=record["analysis_id"]))
 
 
@@ -141,6 +167,15 @@ def delete_report(analysis_id):
     delete_analysis(analysis_id, session["user_id"])
     flash("Report deleted.", "info")
     return redirect(url_for("history"))
+
+
+@app.route("/clear_law_cache", methods=["POST"])
+@login_required
+def clear_law_cache():
+    from rag.law_fetcher import clear_law_cache as _clear
+    _clear()
+    flash("Law cache cleared. Next analysis will fetch fresh laws.", "success")
+    return redirect(url_for("dashboard"))
 
 
 if __name__ == "__main__":
