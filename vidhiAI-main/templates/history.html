@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Analysis History - VidhiAI</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<nav>
+  <a href="{{ url_for('index') }}" class="nav-brand">
+    <div class="brand-icon">V</div>
+    <div>
+      <div class="brand-name">VidhiAI</div>
+    </div>
+  </a>
+  <ul class="nav-links">
+    <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+    <li><a href="{{ url_for('analyze') }}">Analyze</a></li>
+    <li><a href="{{ url_for('history') }}" class="active">History</a></li>
+    <li><a href="{{ url_for('auth.logout') }}" class="nav-btn">Logout</a></li>
+  </ul>
+</nav>
+ 
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="flash-container">
+      {% for cat, msg in messages %}
+        <div class="flash {{ cat }}">{{ msg }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+ 
+<div class="page-container">
+  <div class="page-header flex-between">
+    <div>
+      <h1>Analysis History</h1>
+      <p>All contract analyses for your account - click any row to view the full report.</p>
+    </div>
+    <a href="{{ url_for('analyze') }}" class="btn btn-gold">+ New Analysis</a>
+  </div>
+ 
+  <div class="card">
+    <div class="card-body" style="padding:0">
+      {% if records %}
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Document Name</th>
+              <th>Compliance Score</th>
+              <th>Risk Level</th>
+              <th>Date &amp; Time</th>
+              <th style="width:80px">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in records %}
+            <tr data-href="{{ url_for('report_view', analysis_id=r['analysis_id']) }}">
+              <td style="color:var(--text-muted);font-size:0.85rem">{{ r['analysis_id'] }}</td>
+              <td>
+                <span style="font-weight:600;color:var(--navy)">
+                  {{ r['document_name'][:60] }}{% if r['document_name']|length > 60 %}...{% endif %}
+                </span>
+              </td>
+              <td>
+                <div style="display:flex;align-items:center;gap:0.6rem">
+                  <div style="height:8px;width:80px;background:#e0d9cc;border-radius:4px;overflow:hidden">
+                    <div style="height:100%;width:{{ r['compliance_score'] }}%;border-radius:4px;background:
+                      {% if r['compliance_score'] >= 75 %}var(--green-risk)
+                      {% elif r['compliance_score'] >= 50 %}var(--amber-risk)
+                      {% else %}var(--red-risk){% endif %}"></div>
+                  </div>
+                  <strong style="font-size:0.95rem;color:var(--navy)">{{ "%.0f"|format(r['compliance_score']) }}%</strong>
+                </div>
+              </td>
+              <td>
+                <span class="badge badge-{{ r['risk_level']|lower }}">
+                  {{ r['risk_level'] }}
+                </span>
+              </td>
+              <td style="color:var(--text-muted);font-size:0.85rem">{{ r['timestamp'] }}</td>
+              <td onclick="event.stopPropagation()">
+                <form method="POST" action="{{ url_for('delete_report', analysis_id=r['analysis_id']) }}"
+                      id="del-{{ r['analysis_id'] }}" style="display:inline">
+                  <button type="button" class="btn btn-sm btn-danger"
+                          onclick="confirmDelete('del-{{ r['analysis_id'] }}')">Delete</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div class="empty-state">
+          <div class="empty-icon" style="font-size:2.5rem;font-weight:700;color:var(--navy);font-family:'Playfair Display',serif">H</div>
+          <h3>No History Yet</h3>
+          <p>Your analysis reports will appear here once you analyze a contract.</p>
+          <a href="{{ url_for('analyze') }}" class="btn btn-gold mt-2">Analyze Your First Contract</a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+ 
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
+ 

@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Compliance Report – VidhiAI</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<nav>
+  <a href="{{ url_for('index') }}" class="nav-brand">
+    <div class="brand-icon">V</div>
+    <div>
+      <div class="brand-name">VidhiAI</div>
+      
+    </div>
+  </a>
+  <ul class="nav-links">
+    <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+    <li><a href="{{ url_for('analyze') }}">Analyze</a></li>
+    <li><a href="{{ url_for('history') }}">History</a></li>
+    <li><a href="{{ url_for('auth.logout') }}" class="nav-btn">Logout</a></li>
+  </ul>
+</nav>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="flash-container">
+      {% for cat, msg in messages %}
+        <div class="flash {{ cat }}">{{ msg }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+<div class="page-container">
+
+  <!-- Back + Actions -->
+  <div class="flex-between mb-2">
+    <a href="{{ url_for('history') }}" class="btn btn-outline btn-sm"> Back to History</a>
+    <div style="display:flex;gap:0.5rem;align-items:center">
+      <a href="{{ url_for('analyze') }}" class="btn btn-gold btn-sm">+ New Analysis</a>
+      <form method="POST" action="{{ url_for('delete_report', analysis_id=record['analysis_id']) }}"
+            id="delForm" style="display:inline">
+        <button type="button" class="btn btn-sm btn-danger"
+                onclick="confirmDelete('delForm')"> Delete</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Report Card -->
+  <div class="card">
+    <!-- Report Header -->
+    <div class="report-header">
+      <h2 style="font-family:'Playfair Display',serif;font-size:1.5rem;margin-bottom:0.5rem">
+         {{ record['document_name'] }}
+      </h2>
+      <div class="report-meta">
+        <span> Analyzed: {{ record['timestamp'] }}</span>
+        <span> Report #{{ record['analysis_id'] }}</span>
+        <span>
+          Risk: 
+          <span class="badge badge-{{ record['risk_level']|lower }}" style="font-size:0.75rem">
+            {{ record['risk_level'] }}
+          </span>
+        </span>
+      </div>
+    </div>
+
+    <div class="report-body">
+
+      <!-- Score + Summary Row -->
+      <div class="report-grid" style="margin-bottom:2rem">
+        <!-- Score Ring -->
+        <div class="score-ring-container">
+          {% set score = record['compliance_score']|int %}
+          {% set color_class = 'fill-high' if score >= 75 else ('fill-medium' if score >= 50 else 'fill-low') %}
+          <div class="score-ring" data-score="{{ score }}">
+            <svg width="130" height="130" viewBox="0 0 130 130">
+              <circle class="track" cx="65" cy="65" r="55"/>
+              <circle class="fill {{ color_class }}" cx="65" cy="65" r="55"
+                      stroke-dasharray="0 {{ 2 * 3.14159 * 55 }}"
+                      stroke-dashoffset="0"/>
+            </svg>
+            <div class="score-number">
+              <span class="num">{{ "%.0f"|format(record['compliance_score']) }}</span>
+              <span class="pct">/ 100</span>
+            </div>
+          </div>
+          <div style="text-align:center">
+            <span class="badge badge-{{ record['risk_level']|lower }}" style="font-size:0.8rem">
+              {{ record['risk_level'] }} Risk
+            </span>
+            <p style="font-size:0.78rem;color:var(--text-muted);margin-top:0.4rem">Compliance Score</p>
+          </div>
+        </div>
+
+        <!-- Explanation -->
+        <div>
+          <div class="section-title">AI Analysis Summary</div>
+          <div class="explanation-box">{{ analysis.get('explanation', 'No explanation available.') }}</div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Detected Risks -->
+      {% if analysis.get('detected_risks') %}
+      <div style="margin-bottom:2rem">
+        <div class="section-title">Detected Risks</div>
+        <ul class="risk-list">
+          {% for risk in analysis['detected_risks'] %}
+          <li>
+            <div class="risk-dot {{ risk.get('severity','Low')|lower }}"></div>
+            <div style="flex:1">
+              <span style="font-weight:600;color:var(--text-dark)">{{ risk.get('risk','') }}</span>
+              <div style="display:flex;gap:0.5rem;margin-top:0.3rem;flex-wrap:wrap">
+                <span class="badge badge-{{ risk.get('severity','Low')|lower }}" style="font-size:0.7rem">
+                  {{ risk.get('severity','Low') }}
+                </span>
+                {% if risk.get('section') %}
+                <span style="font-size:0.78rem;color:var(--text-muted);background:rgba(0,0,0,0.05);padding:0.15rem 0.5rem;border-radius:10px">
+                   {{ risk['section'] }}
+                </span>
+                {% endif %}
+              </div>
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      <div class="divider"></div>
+
+      <!-- Two-column: Missing Clauses + Recommendations -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;margin-bottom:2rem" class="two-col">
+
+        {% if analysis.get('missing_clauses') %}
+        <div>
+          <div class="section-title">Missing Clauses</div>
+          <ul class="clause-list">
+            {% for clause in analysis['missing_clauses'] %}
+            <li>{{ clause }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endif %}
+
+        {% if analysis.get('recommendations') %}
+        <div>
+          <div class="section-title">Recommendations</div>
+          <ul class="clause-list" style="">
+            {% for rec in analysis['recommendations'] %}
+            <li style="gap:0.6rem">
+              <span style="color:var(--green-risk);font-size:0.9rem"></span>
+              {{ rec }}
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endif %}
+
+      </div>
+
+      <div class="divider"></div>
+
+      <!-- Referenced Laws -->
+      {% if analysis.get('referenced_laws') %}
+      <div>
+        <div class="section-title">Referenced Laws & Regulations</div>
+        <div class="law-ref-list">
+          {% for law in analysis['referenced_laws'] %}
+          <span class="law-ref"> {{ law }}</span>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+
+      <!-- NLP Analysis Details -->
+      {% if analysis.get('nlp_data') %}
+      {% set nlp = analysis['nlp_data'] %}
+      <div class="divider"></div>
+
+      <div style="margin-bottom:2rem">
+        <div class="section-title">NLP Analysis Details</div>
+
+        <!-- Score breakdown -->
+        {% if nlp.get('score_breakdown') %}
+        {% set sb = nlp['score_breakdown'] %}
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin-bottom:1.5rem">
+          <div style="background:rgba(13,27,42,0.04);border-radius:8px;padding:1rem;text-align:center">
+            <div style="font-size:1.6rem;font-weight:700;color:var(--navy);font-family:'Playfair Display',serif">{{ sb.get('clause_score', 0) }}</div>
+            <div style="font-size:0.78rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Clause Score</div>
+          </div>
+          <div style="background:rgba(13,27,42,0.04);border-radius:8px;padding:1rem;text-align:center">
+            <div style="font-size:1.6rem;font-weight:700;color:var(--navy);font-family:'Playfair Display',serif">{{ sb.get('entity_score', 0) }}</div>
+            <div style="font-size:0.78rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Entity Score</div>
+          </div>
+          <div style="background:rgba(13,27,42,0.04);border-radius:8px;padding:1rem;text-align:center">
+            <div style="font-size:1.6rem;font-weight:700;color:var(--navy);font-family:'Playfair Display',serif">{{ sb.get('structure_score', 0) }}</div>
+            <div style="font-size:0.78rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Structure Score</div>
+          </div>
+          <div style="background:rgba(13,27,42,0.04);border-radius:8px;padding:1rem;text-align:center">
+            <div style="font-size:1.6rem;font-weight:700;color:var(--navy);font-family:'Playfair Display',serif">{{ nlp.get('word_count', 0) }}</div>
+            <div style="font-size:0.78rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px">Word Count</div>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Entities -->
+        {% if nlp.get('entities') %}
+        {% set ents = nlp['entities'] %}
+        <div style="margin-bottom:1.25rem">
+          <p style="font-size:0.85rem;font-weight:600;color:var(--navy);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.6rem">Named Entities (NER)</p>
+          <div style="display:flex;flex-wrap:wrap;gap:0.5rem">
+            {% for party in ents.get('parties', [])[:4] %}
+            <span style="background:#e8f4fd;color:#1a5276;border:1px solid #aed6f1;padding:0.25rem 0.6rem;border-radius:20px;font-size:0.8rem;font-weight:500">Party: {{ party }}</span>
+            {% endfor %}
+            {% for date in ents.get('dates', [])[:3] %}
+            <span style="background:#eafaf1;color:#1e8449;border:1px solid #a9dfbf;padding:0.25rem 0.6rem;border-radius:20px;font-size:0.8rem;font-weight:500">Date: {{ date }}</span>
+            {% endfor %}
+            {% for amount in ents.get('amounts', [])[:3] %}
+            <span style="background:#fef9e7;color:#9a7d0a;border:1px solid #f9e79f;padding:0.25rem 0.6rem;border-radius:20px;font-size:0.8rem;font-weight:500">Amount: {{ amount }}</span>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Clause detection -->
+        {% if nlp.get('clauses') %}
+        <div>
+          <p style="font-size:0.85rem;font-weight:600;color:var(--navy);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.6rem">Clause Detection Results</p>
+          <div style="display:flex;flex-wrap:wrap;gap:0.4rem">
+            {% for clause, present in nlp['clauses'].items() %}
+            <span style="padding:0.25rem 0.6rem;border-radius:20px;font-size:0.78rem;font-weight:600;
+              {% if present %}background:#d4f4e3;color:#1e8449;border:1px solid #a8e6c5
+              {% else %}background:#fde8e8;color:#c0392b;border:1px solid #f5c6c6{% endif %}">
+              {{ clause.replace('_', ' ').title() }}: {{ 'Found' if present else 'Missing' }}
+            </span>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      
+    </div>
+  </div>
+</div>
+
+<style>
+  @media (max-width: 640px) {
+    .two-col { grid-template-columns: 1fr !important; }
+  }
+</style>
+
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
+
+<!-- NLP Data Section (injected before </div> closing page-container) -->
