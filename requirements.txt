@@ -13,3 +13,4 @@ requests==2.31.0
 spacy==3.7.4
 nltk==3.8.1
 google-generativeai
+numpy<2.0.0
