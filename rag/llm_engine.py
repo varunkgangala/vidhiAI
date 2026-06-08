@@ -18,6 +18,30 @@ import urllib.error
 from dotenv import load_dotenv
 load_dotenv(override=True)
 
+def _get_gemini_key() -> str:
+    key = os.environ.get("GEMINI_API_KEY", "")
+    if not key:
+        try:
+            import streamlit as st
+            if "GEMINI_API_KEY" in st.secrets:
+                key = st.secrets["GEMINI_API_KEY"]
+        except Exception:
+            pass
+    return key
+
+
+def _get_gemini_model() -> str:
+    model = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash")
+    if not model:
+        try:
+            import streamlit as st
+            if "GEMINI_MODEL" in st.secrets:
+                model = st.secrets["GEMINI_MODEL"]
+        except Exception:
+            pass
+    return model
+
+
 # ── Gemini API call ───────────────────────────────────────────────────────────
 
 def _call_gemini(prompt: str, timeout: int = 60) -> str | None:
@@ -25,18 +49,8 @@ def _call_gemini(prompt: str, timeout: int = 60) -> str | None:
     Call Google Gemini API.
     Returns raw text response or None on failure.
     """
-    key = os.environ.get("GEMINI_API_KEY", "")
-    model = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash")
-    
-    if not key:
-        try:
-            import streamlit as st
-            if "GEMINI_API_KEY" in st.secrets:
-                key = st.secrets["GEMINI_API_KEY"]
-            if "GEMINI_MODEL" in st.secrets:
-                model = st.secrets["GEMINI_MODEL"]
-        except Exception:
-            pass
+    key = _get_gemini_key()
+    model = _get_gemini_model()
 
     if not key:
         print("[VidhiAI] GEMINI_API_KEY not set")
@@ -232,9 +246,10 @@ def run_llm_analysis(prompt: str, nlp_result: dict = None,
       3. Override Gemini score with NLP score (more accurate)
       4. Fall back to NLP-only result if Gemini unavailable
     """
+    gemini_key = _get_gemini_key()
     print(f"\n{'='*60}")
     print(f"[VidhiAI] Starting Gemini LLM analysis")
-    print(f"[VidhiAI] API Key set: {bool(GEMINI_API_KEY)}")
+    print(f"[VidhiAI] API Key set: {bool(gemini_key)}")
     print(f"{'='*60}")
 
     if nlp_result:
@@ -243,7 +258,7 @@ def run_llm_analysis(prompt: str, nlp_result: dict = None,
         print(f"[VidhiAI] Missing  : {nlp_result.get('missing_clauses', [])}")
 
     # No API key — use NLP result directly
-    if not GEMINI_API_KEY:
+    if not gemini_key:
         print("[VidhiAI] No Gemini API key — using NLP-only result")
         if nlp_result:
             return _build_result_from_nlp(nlp_result, contract_type)
