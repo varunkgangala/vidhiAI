@@ -195,8 +195,29 @@ def inject_custom_css():
         margin-bottom: 1.5rem;
     }
     
+    /* Labels Visibility */
+    label, [data-testid="stWidgetLabel"] p {
+        color: #0d1b2a !important;
+        font-weight: 600 !important;
+    }
+    
+    /* Keep Sidebar Labels White */
+    section[data-testid="stSidebar"] label, section[data-testid="stSidebar"] [data-testid="stWidgetLabel"] p {
+        color: #ffffff !important;
+    }
+    
+    /* Input Box Styles */
+    div[data-baseweb="input"] {
+        background-color: #ffffff !important;
+        border: 1.5px solid #d4c9b0 !important;
+        border-radius: 8px !important;
+    }
+    div[data-baseweb="input"] input {
+        color: #1a1a2e !important;
+    }
+    
     /* Buttons Override */
-    div.stButton > button {
+    div.stButton > button, div[data-testid="stFormSubmitButton"] > button {
         background-color: #0d1b2a !important;
         color: #ffffff !important;
         border-radius: 8px !important;
@@ -205,8 +226,9 @@ def inject_custom_css():
         border: 1px solid transparent !important;
         transition: all 0.2s ease !important;
     }
-    div.stButton > button:hover {
+    div.stButton > button:hover, div[data-testid="stFormSubmitButton"] > button:hover {
         background-color: #243b55 !important;
+        color: #ffffff !important;
         border-color: #c9a84c !important;
     }
     </style>
