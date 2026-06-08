@@ -1,0 +1,26 @@
+# Environment
+.env
+venv/
+venv311/
+__pycache__/
+*.pyc
+*.pyo
+
+# Data
+data/uploads/*
+!data/uploads/.gitkeep
+data/law_cache/*
+!data/law_cache/.gitkeep
+
+# Database
+vidhiai.db
+
+# Python
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# OS
+.DS_Store
+Thumbs.db
