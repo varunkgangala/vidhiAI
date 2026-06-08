@@ -206,14 +206,9 @@ def inject_custom_css():
         color: #ffffff !important;
     }
     
-    /* Input Box Styles */
-    div[data-baseweb="input"] {
-        background-color: #ffffff !important;
-        border: 1.5px solid #d4c9b0 !important;
-        border-radius: 8px !important;
-    }
-    div[data-baseweb="input"] input {
-        color: #1a1a2e !important;
+    /* Input Box Text Color (White) */
+    div[data-baseweb="input"] input, textarea, div[data-baseweb="textarea"] textarea {
+        color: #ffffff !important;
     }
     
     /* Buttons Override */
