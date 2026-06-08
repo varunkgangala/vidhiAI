@@ -2,21 +2,30 @@ import os
 import json
 from datetime import datetime
 
-# ── Supabase connection ──────────────────────────────────────────────────────
-SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
-
+# ── Supabase connection connection helper ────────────────────────────────────────
 
 def get_client():
-    if not SUPABASE_URL or not SUPABASE_KEY:
+    url = os.environ.get("SUPABASE_URL", "")
+    key = os.environ.get("SUPABASE_KEY", "")
+    
+    if not url or not key:
+        try:
+            import streamlit as st
+            if "SUPABASE_URL" in st.secrets:
+                url = st.secrets["SUPABASE_URL"]
+            if "SUPABASE_KEY" in st.secrets:
+                key = st.secrets["SUPABASE_KEY"]
+        except Exception:
+            pass
+
+    if not url or not key:
         raise RuntimeError(
             "Supabase credentials missing.\n"
-            "Please set SUPABASE_URL and SUPABASE_KEY in your .env file."
+            "Please check your environment variables or Streamlit secrets."
         )
 
     from supabase import create_client
-
-    return create_client(SUPABASE_URL, SUPABASE_KEY)
+    return create_client(url, key)
     # if not SUPABASE_URL or not SUPABASE_KEY:
     #     raise RuntimeError(
     #         "Supabase credentials missing.\n"

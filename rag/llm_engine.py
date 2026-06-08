@@ -18,13 +18,6 @@ import urllib.error
 from dotenv import load_dotenv
 load_dotenv(override=True)
 
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
-GEMINI_MODEL   = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash")
-GEMINI_URL     = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
-
-print(f"[VidhiAI] LLM Engine ready | Provider: Gemini | Model: {GEMINI_MODEL}")
-
-
 # ── Gemini API call ───────────────────────────────────────────────────────────
 
 def _call_gemini(prompt: str, timeout: int = 60) -> str | None:
@@ -32,12 +25,27 @@ def _call_gemini(prompt: str, timeout: int = 60) -> str | None:
     Call Google Gemini API.
     Returns raw text response or None on failure.
     """
-    if not GEMINI_API_KEY:
-        print("[VidhiAI] GEMINI_API_KEY not set in .env")
+    key = os.environ.get("GEMINI_API_KEY", "")
+    model = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash")
+    
+    if not key:
+        try:
+            import streamlit as st
+            if "GEMINI_API_KEY" in st.secrets:
+                key = st.secrets["GEMINI_API_KEY"]
+            if "GEMINI_MODEL" in st.secrets:
+                model = st.secrets["GEMINI_MODEL"]
+        except Exception:
+            pass
+
+    if not key:
+        print("[VidhiAI] GEMINI_API_KEY not set")
         return None
 
+    gemini_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+
     try:
-        url     = f"{GEMINI_URL}?key={GEMINI_API_KEY}"
+        url     = f"{gemini_url}?key={key}"
         payload = json.dumps({
             "contents": [{
                 "parts": [{"text": prompt}]

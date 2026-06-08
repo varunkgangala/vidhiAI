@@ -15,11 +15,18 @@ LAW_CACHE_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "law_cache
 # Cache expiry — 24 hours
 CACHE_EXPIRY = 86400
 
-# ── CourtListener API ─────────────────────────────────────────────────────────
-# Get your token from: https://www.courtlistener.com/sign-in/
-# Add to .env: COURTLISTENER_TOKEN=your_token_here
-COURTLISTENER_TOKEN = os.environ.get("COURTLISTENER_TOKEN", "")
 COURTLISTENER_BASE  = "https://www.courtlistener.com/api/rest/v4"
+
+def _get_cl_token() -> str:
+    token = os.environ.get("COURTLISTENER_TOKEN", "")
+    if not token:
+        try:
+            import streamlit as st
+            if "COURTLISTENER_TOKEN" in st.secrets:
+                token = st.secrets["COURTLISTENER_TOKEN"]
+        except Exception:
+            pass
+    return token
 
 # ── Search terms per contract type ────────────────────────────────────────────
 
@@ -177,7 +184,7 @@ def _save_cache(key: str, content: str):
 def _cl_headers() -> dict:
     """Return headers with Authorization token."""
     return {
-        "Authorization": f"Token {COURTLISTENER_TOKEN}",
+        "Authorization": f"Token {_get_cl_token()}",
         "Content-Type":  "application/json",
         "User-Agent":    "VidhiAI Legal Research/1.0",
     }
@@ -278,9 +285,9 @@ def _fetch_courtlistener_laws(contract_type: str) -> str | None:
     Fetch real legal data from CourtListener for the contract type.
     Runs multiple queries and combines results.
     """
-    if not COURTLISTENER_TOKEN:
-        print("[VidhiAI] CourtListener token not set in .env - skipping real-time fetch")
-        print("[VidhiAI] Add COURTLISTENER_TOKEN=your_token to .env file")
+    token = _get_cl_token()
+    if not token:
+        print("[VidhiAI] CourtListener token not set - skipping real-time fetch")
         return None
 
     search_terms = CONTRACT_SEARCH_TERMS.get(
