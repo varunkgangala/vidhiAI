@@ -1,8 +1,16 @@
+"""
+prompt_builder.py — Gemini-optimised prompts for VidhiAI
+
+Gemini does not use Llama3 chat template tags.
+Uses plain conversational prompt format which Gemini responds to best.
+"""
+
 
 def build_analysis_prompt(contract_text: str, laws: str,
                            contract_type: str, nlp_result: dict = None) -> str:
-
-    # Build NLP context section if available
+    """
+    Build Gemini-optimised prompt with NLP results embedded.
+    """
     nlp_context = ""
     if nlp_result:
         score_data      = nlp_result.get("score_data", {})
@@ -10,149 +18,135 @@ def build_analysis_prompt(contract_text: str, laws: str,
         missing_clauses = nlp_result.get("missing_clauses", [])
         risk_phrases    = nlp_result.get("risk_phrases", [])
         obligations     = nlp_result.get("obligations", [])
-        nlp_summary     = nlp_result.get("nlp_summary", "")
 
-        # Format detected risks
         risks_text = "\n".join([
             f"- [{r['severity']}] {r['risk']} (Section: {r['section']})"
             for r in risk_phrases[:6]
-        ])
+        ]) or "- None detected"
 
-        # Format obligations
         oblig_text = "\n".join([
             f"- {o['subject']}: {o['text'][:120]}"
             for o in obligations[:5]
-        ])
+        ]) or "- None extracted"
+
+        parties_text = ", ".join(entities.get("parties", [])[:4]) or "Not identified"
+        dates_text   = ", ".join(entities.get("dates",   [])[:3]) or "Not found"
+        amounts_text = ", ".join(entities.get("amounts", [])[:3]) or "Not found"
 
         nlp_context = f"""
-=== PRE-COMPUTED NLP ANALYSIS RESULTS ===
+=== NLP PRE-ANALYSIS (already computed) ===
+Contract Type    : {contract_type.replace('_', ' ').title()}
+Compliance Score : {score_data.get('score', 0)} / 100
+Risk Level       : {score_data.get('risk_level', 'Unknown')}
+Grade            : {score_data.get('grade', 'N/A')}
+Clauses Found    : {score_data.get('clauses_found', 0)} of {score_data.get('clauses_total', 11)}
 
-CONTRACT TYPE     : {contract_type.replace('_', ' ').title()}
-NLP COMPLIANCE SCORE: {score_data.get('score', 0)} / 100
-RISK LEVEL        : {score_data.get('risk_level', 'Unknown')}
-GRADE             : {score_data.get('grade', 'N/A')}
+Parties (NER)    : {parties_text}
+Dates (NER)      : {dates_text}
+Amounts (NER)    : {amounts_text}
 
-PARTIES IDENTIFIED (NER):
-{', '.join(entities.get('parties', ['Not identified'])[:5])}
+Missing Clauses  :
+{chr(10).join('- ' + c for c in missing_clauses) if missing_clauses else '- None'}
 
-DATES FOUND (NER):
-{', '.join(entities.get('dates', ['Not found'])[:4])}
+Risk Phrases     :
+{risks_text}
 
-AMOUNTS FOUND (NER):
-{', '.join(entities.get('amounts', ['Not found'])[:4])}
-
-MISSING CLAUSES (NLP Detection):
-{chr(10).join('- ' + c for c in missing_clauses) if missing_clauses else '- None detected'}
-
-RISK PHRASES DETECTED (NLP):
-{risks_text if risks_text else '- No high-risk phrases found'}
-
-KEY OBLIGATIONS EXTRACTED (Dependency Parsing):
-{oblig_text if oblig_text else '- No obligations extracted'}
-
-NLP SUMMARY:
-{nlp_summary}
+Obligations      :
+{oblig_text}
 """
 
-    prompt = f"""<|begin_of_text|><|start_header_id|>system<|end_header_id|>
-You are VidhiAI, a legal compliance assistant. NLP analysis has already been performed on the contract. Your job is to use the NLP results and applicable laws to generate a detailed compliance report in JSON format only. No extra text outside JSON.
-<|eot_id|><|start_header_id|>user<|end_header_id|>
+    score   = nlp_result.get("score_data", {}).get("score", 60)   if nlp_result else 60
+    risk    = nlp_result.get("score_data", {}).get("risk_level", "Medium") if nlp_result else "Medium"
+    missing = nlp_result.get("missing_clauses", [])               if nlp_result else []
+
+    prompt = f"""You are VidhiAI, an expert legal compliance assistant specializing in Indian contract law.
 
 {nlp_context}
 
 === APPLICABLE LAWS ===
-{laws[:2000]}
+{laws[:2500]}
 
-=== CONTRACT TEXT (first 3000 chars) ===
+=== CONTRACT TEXT ===
 {contract_text[:3000]}
 
-=== YOUR TASK ===
-Using the NLP analysis results and applicable laws above, generate a compliance report.
-The compliance_score and risk_level have already been computed by NLP — use them directly.
-Focus on generating a detailed explanation, referenced laws, and actionable recommendations.
+=== TASK ===
+Using the NLP analysis above and applicable laws, generate a detailed legal compliance report.
 
-Return ONLY this JSON:
+IMPORTANT RULES:
+- Use compliance_score = {score} exactly (already computed by NLP)
+- Use risk_level = "{risk}" exactly (already computed by NLP)  
+- Write the explanation in professional legal language (3 paragraphs)
+- Do NOT mention "NLP", "TF-IDF", "spaCy" or any technical terms in the explanation
+- The explanation should read like a legal professional wrote it
+- Reference specific Indian laws by name
+
+Respond ONLY with this JSON (no extra text, no markdown):
 
 {{
-  "compliance_score": {nlp_result.get('score_data', {}).get('score', 60) if nlp_result else 60},
-  "risk_level": "{nlp_result.get('score_data', {}).get('risk_level', 'Medium') if nlp_result else 'Medium'}",
-  "missing_clauses": {str(missing_clauses if nlp_result else []).replace("'", '"')},
+  "compliance_score": {score},
+  "risk_level": "{risk}",
+  "missing_clauses": {json_list(missing)},
   "detected_risks": [
     {{
-      "risk": "<description of risk>",
-      "severity": "<High|Medium|Low>",
-      "section": "<section name>"
+      "risk": "specific risk description",
+      "severity": "High or Medium or Low",
+      "section": "clause/section name"
     }}
   ],
-  "explanation": "<3 paragraph detailed explanation using NLP findings and laws>",
-  "referenced_laws": ["<law 1>", "<law 2>"],
-  "recommendations": ["<recommendation 1>", "<recommendation 2>"]
-}}
+  "explanation": "Paragraph 1: Overall compliance assessment with score and risk level.\\n\\nParagraph 2: Key findings — missing clauses and their legal implications under Indian law.\\n\\nParagraph 3: Recommendations and next steps.",
+  "referenced_laws": ["Law 1", "Law 2", "Law 3"],
+  "recommendations": ["Specific recommendation 1", "Specific recommendation 2", "Specific recommendation 3"]
+}}"""
 
-OUTPUT ONLY THE JSON. NO OTHER TEXT.
-<|eot_id|><|start_header_id|>assistant<|end_header_id|>
-"""
     return prompt
+
+
+def json_list(items: list) -> str:
+    """Convert Python list to JSON array string."""
+    import json
+    return json.dumps(items)
 
 
 def build_analysis_prompt_fallback(contract_text: str, laws: str,
                                     contract_type: str,
                                     nlp_result: dict = None) -> str:
-    """
-    Simpler prompt format for models that don't support Llama3 chat template.
-    Works with gpt-oss, llama2, mistral, phi3 etc.
-    """
-    score      = nlp_result.get("score_data", {}).get("score", 60)      if nlp_result else 60
-    risk       = nlp_result.get("score_data", {}).get("risk_level", "Medium") if nlp_result else "Medium"
-    missing    = nlp_result.get("missing_clauses", [])                   if nlp_result else []
-    risk_phrases = nlp_result.get("risk_phrases", [])                    if nlp_result else []
+    """Simpler prompt — same format, shorter context."""
+    score   = nlp_result.get("score_data", {}).get("score", 60)        if nlp_result else 60
+    risk    = nlp_result.get("score_data", {}).get("risk_level", "Medium") if nlp_result else "Medium"
+    missing = nlp_result.get("missing_clauses", [])                     if nlp_result else []
 
-    risks_text = "\n".join([
-        f"- [{r['severity']}] {r['risk']}"
-        for r in risk_phrases[:5]
-    ]) if risk_phrases else "None detected"
+    prompt = f"""You are a legal compliance expert. Analyze this contract and return JSON only.
 
-    prompt = f"""### SYSTEM
-You are VidhiAI legal compliance assistant. Output ONLY valid JSON. No markdown. No extra text.
-
-### NLP PRE-ANALYSIS
-Contract Type  : {contract_type.replace('_', ' ').title()}
-Compliance Score: {score}/100
-Risk Level     : {risk}
+Contract Type: {contract_type.replace('_', ' ').title()}
+Pre-computed Score: {score}/100
+Pre-computed Risk: {risk}
 Missing Clauses: {', '.join(missing) if missing else 'None'}
-Risk Phrases   : {risks_text}
 
-### APPLICABLE LAWS
+Laws:
 {laws[:1500]}
 
-### CONTRACT TEXT
+Contract:
 {contract_text[:2500]}
 
-### INSTRUCTION
-Generate a compliance report JSON using the NLP analysis above.
-Use the pre-computed score ({score}) and risk level ({risk}) directly.
-
+Return this exact JSON structure:
 {{
   "compliance_score": {score},
   "risk_level": "{risk}",
-  "missing_clauses": {str(missing).replace("'", '"')},
-  "detected_risks": [
-    {{"risk": "description", "severity": "High|Medium|Low", "section": "section name"}}
-  ],
-  "explanation": "detailed 3 paragraph explanation",
-  "referenced_laws": ["law name"],
-  "recommendations": ["recommendation"]
+  "missing_clauses": {json_list(missing)},
+  "detected_risks": [{{"risk": "description", "severity": "High/Medium/Low", "section": "section"}}],
+  "explanation": "3 paragraph professional legal analysis",
+  "referenced_laws": ["Indian Contract Act, 1872"],
+  "recommendations": ["recommendation 1", "recommendation 2"]
 }}
 
-### RESPONSE (JSON only):
-"""
+JSON only, no other text:"""
     return prompt
 
 
 def build_summary_prompt(analysis_result: dict) -> str:
     return (
-        f"Summarize this legal analysis in 2 sentences for a non-lawyer:\n"
-        f"Compliance Score : {analysis_result.get('compliance_score')}%\n"
-        f"Risk Level       : {analysis_result.get('risk_level')}\n"
-        f"Issues found     : {len(analysis_result.get('detected_risks', []))}"
+        f"Summarize this legal analysis in 2 sentences:\n"
+        f"Score: {analysis_result.get('compliance_score')}%\n"
+        f"Risk: {analysis_result.get('risk_level')}\n"
+        f"Issues: {len(analysis_result.get('detected_risks', []))}"
     )

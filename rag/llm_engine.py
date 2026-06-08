@@ -1,78 +1,106 @@
+"""
+llm_engine.py — Gemini API integration for VidhiAI
+
+Pipeline:
+  1. Run NLP analysis (already done, passed in)
+  2. Call Gemini API for explanation generation
+  3. Merge Gemini output with NLP results
+  4. Fall back to NLP-only result if Gemini fails
+"""
+
 import json
 import re
 import os
 import random
+import urllib.request
+import urllib.error
 
 from dotenv import load_dotenv
 load_dotenv(override=True)
 
-OLLAMA_URL   = os.environ.get("OLLAMA_URL",   "http://localhost:11434")
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "gpt-oss:latest")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+GEMINI_MODEL   = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash")
+GEMINI_URL     = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
 
-print(f"[VidhiAI] LLM Engine ready | Model: {OLLAMA_MODEL} | URL: {OLLAMA_URL}")
+print(f"[VidhiAI] LLM Engine ready | Provider: Gemini | Model: {GEMINI_MODEL}")
 
 
-# ── Ollama connectivity ───────────────────────────────────────────────────────
+# ── Gemini API call ───────────────────────────────────────────────────────────
 
-def _check_ollama_running() -> bool:
+def _call_gemini(prompt: str, timeout: int = 60) -> str | None:
+    """
+    Call Google Gemini API.
+    Returns raw text response or None on failure.
+    """
+    if not GEMINI_API_KEY:
+        print("[VidhiAI] GEMINI_API_KEY not set in .env")
+        return None
+
     try:
-        import urllib.request
-        urllib.request.urlopen(f"{OLLAMA_URL}/api/tags", timeout=5)
-        return True
-    except Exception as e:
-        print(f"[VidhiAI] Ollama ping failed: {e}")
-        return False
-
-
-def _get_available_models() -> list:
-    try:
-        import urllib.request
-        with urllib.request.urlopen(f"{OLLAMA_URL}/api/tags", timeout=5) as resp:
-            data = json.loads(resp.read())
-            return [m["name"] for m in data.get("models", [])]
-    except Exception:
-        return []
-
-
-def _call_llama(prompt: str, timeout: int = 300) -> str | None:
-    try:
-        import urllib.request
-        import urllib.error
-
+        url     = f"{GEMINI_URL}?key={GEMINI_API_KEY}"
         payload = json.dumps({
-            "model":  OLLAMA_MODEL,
-            "prompt": prompt,
-            "stream": False,
-            "options": {
-                "temperature": 0.1,
-                "top_p":       0.9,
-                "num_predict": 2048,
-                "stop": ["<|eot_id|>", "### HUMAN", "### USER", "</s>"]
+            "contents": [{
+                "parts": [{"text": prompt}]
+            }],
+            "generationConfig": {
+                "temperature":     0.1,
+                "maxOutputTokens": 2048,
+                "topP":            0.9,
             }
         }).encode()
 
         req = urllib.request.Request(
-            f"{OLLAMA_URL}/api/generate",
+            url,
             data=payload,
             headers={"Content-Type": "application/json"},
             method="POST"
         )
 
-        print(f"[VidhiAI] Sending NLP-enriched prompt to {OLLAMA_MODEL}...")
+        print(f"[VidhiAI] Calling Gemini ({GEMINI_MODEL})...")
         with urllib.request.urlopen(req, timeout=timeout) as resp:
-            data          = json.loads(resp.read())
-            response_text = data.get("response", "").strip()
-            print(f"[VidhiAI] LLM responded with {len(response_text)} characters")
-            return response_text
+            data = json.loads(resp.read())
+
+            # Extract text from Gemini response
+            candidates = data.get("candidates", [])
+            if not candidates:
+                print("[VidhiAI] Gemini returned no candidates")
+                return None
+
+            content = candidates[0].get("content", {})
+            parts   = content.get("parts", [])
+            if not parts:
+                print("[VidhiAI] Gemini returned empty parts")
+                return None
+
+            text = parts[0].get("text", "").strip()
+            print(f"[VidhiAI] Gemini responded with {len(text)} characters")
+            return text
+
+    except urllib.error.HTTPError as e:
+        body = e.read().decode()
+        if e.code == 400:
+            print(f"[VidhiAI] Gemini bad request: {body[:200]}")
+        elif e.code == 403:
+            print("[VidhiAI] Gemini API key invalid or quota exceeded")
+        elif e.code == 429:
+            print("[VidhiAI] Gemini rate limit hit — try again in a moment")
+        else:
+            print(f"[VidhiAI] Gemini HTTP {e.code}: {body[:200]}")
+        return None
+
+    except urllib.error.URLError as e:
+        print(f"[VidhiAI] Gemini connection error: {e.reason}")
+        return None
 
     except Exception as e:
-        print(f"[VidhiAI] LLM call failed: {e}")
+        print(f"[VidhiAI] Gemini call failed: {e}")
         return None
 
 
 # ── JSON extraction ───────────────────────────────────────────────────────────
 
 def _extract_json(raw: str) -> dict | None:
+    """Extract JSON from Gemini response — handles markdown wrapping."""
     if not raw:
         return None
     # Strategy 1: Direct parse
@@ -80,13 +108,13 @@ def _extract_json(raw: str) -> dict | None:
         return json.loads(raw.strip())
     except Exception:
         pass
-    # Strategy 2: Strip markdown
+    # Strategy 2: Strip markdown fences
     cleaned = re.sub(r"```(?:json)?", "", raw).replace("```", "").strip()
     try:
         return json.loads(cleaned)
     except Exception:
         pass
-    # Strategy 3: Find { } block
+    # Strategy 3: Find largest { } block
     match = re.search(r'\{[\s\S]*\}', cleaned)
     if match:
         try:
@@ -103,59 +131,51 @@ def _extract_json(raw: str) -> dict | None:
             return json.loads(match2.group())
     except Exception:
         pass
-    print("[VidhiAI] Could not extract JSON from LLM response")
+    print("[VidhiAI] Could not extract JSON from Gemini response")
+    print(f"[VidhiAI] Response preview: {raw[:300]}")
     return None
 
 
 def _validate_result(result: dict) -> bool:
+    """Validate and normalise the result dict."""
     required = {"compliance_score": (int, float), "risk_level": str, "explanation": str}
     for key, types in required.items():
         if key not in result or not isinstance(result[key], types):
+            print(f"[VidhiAI] Missing or invalid key: {key}")
             return False
     rl = str(result["risk_level"]).strip().capitalize()
-    result["risk_level"]      = rl if rl in ("High","Medium","Low") else \
-        ("High" if int(result.get("compliance_score",50))<50 else
-         "Medium" if int(result.get("compliance_score",50))<75 else "Low")
+    result["risk_level"]       = rl if rl in ("High", "Medium", "Low") else \
+        ("High" if int(result.get("compliance_score", 50)) < 50 else
+         "Medium" if int(result.get("compliance_score", 50)) < 75 else "Low")
     result["compliance_score"] = max(0, min(100, int(result["compliance_score"])))
-    for field in ["missing_clauses","detected_risks","referenced_laws","recommendations"]:
+    for field in ["missing_clauses", "detected_risks", "referenced_laws", "recommendations"]:
         if field not in result or not isinstance(result[field], list):
             result[field] = []
     return True
 
 
-# ── NLP-only result builder ───────────────────────────────────────────────────
+# ── NLP-only fallback ─────────────────────────────────────────────────────────
 
 def _build_result_from_nlp(nlp_result: dict, contract_type: str) -> dict:
-    """
-    Build a complete analysis result purely from NLP — no LLM needed.
-    Used as fallback when Ollama is unavailable.
-    """
+    """Build complete result from NLP alone — used when Gemini is unavailable."""
     score_data   = nlp_result.get("score_data", {})
-    entities     = nlp_result.get("entities", {})
     risk_phrases = nlp_result.get("risk_phrases", [])
     missing      = nlp_result.get("missing_clauses", [])
     nlp_summary  = nlp_result.get("nlp_summary", "")
+    score        = score_data.get("score", 50)
+    risk_level   = score_data.get("risk_level", "Medium")
 
-    score      = score_data.get("score", 50)
-    risk_level = score_data.get("risk_level", "Medium")
-
-    # Build detected risks from NLP risk phrases
     detected_risks = [
-        {
-            "risk":     r["risk"],
-            "severity": r["severity"],
-            "section":  r["section"],
-        }
+        {"risk": r["risk"], "severity": r["severity"], "section": r["section"]}
         for r in risk_phrases[:6]
     ]
     if not detected_risks:
         detected_risks.append({
-            "risk":     "No high-risk phrases detected by NLP analysis",
+            "risk":     "No high-risk phrases detected",
             "severity": "Low",
             "section":  "General",
         })
 
-    # Referenced laws based on contract type
     laws_map = {
         "employment":        ["Indian Contract Act, 1872", "Industrial Disputes Act, 1947",
                               "Minimum Wages Act, 1948", "Payment of Wages Act, 1936",
@@ -172,10 +192,9 @@ def _build_result_from_nlp(nlp_result: dict, contract_type: str) -> dict:
     }
     referenced_laws = laws_map.get(contract_type, laws_map["general_contract"])
 
-    # Recommendations
     recommendations = []
     if missing:
-        recommendations.append(f"Add a {missing[0]} to meet legal requirements")
+        recommendations.append(f"Add a {missing[0].lower()} to meet legal requirements")
     recommendations += [
         "Ensure all monetary amounts comply with statutory minimums",
         "Have the contract reviewed by a qualified legal professional",
@@ -183,22 +202,12 @@ def _build_result_from_nlp(nlp_result: dict, contract_type: str) -> dict:
         "Include a severability clause to protect contract validity",
     ]
 
-    # Build explanation from NLP summary
-    explanation = (
-        f"{nlp_summary}\n\n"
-        f"Based on NLP analysis, the contract scored {score}/100 with a "
-        f"{risk_level.lower()} risk classification. "
-        f"{'All major clauses are present.' if not missing else f'Key missing clauses: {chr(44).join(missing[:3])}.'}\n\n"
-        f"It is strongly recommended that a qualified legal professional review "
-        f"this contract before execution."
-    )
-
     return {
         "compliance_score": score,
         "risk_level":       risk_level,
         "missing_clauses":  missing,
         "detected_risks":   detected_risks,
-        "explanation":      explanation,
+        "explanation":      nlp_summary,
         "referenced_laws":  referenced_laws,
         "recommendations":  recommendations[:5],
     }
@@ -211,91 +220,62 @@ def run_llm_analysis(prompt: str, nlp_result: dict = None,
     """
     Main analysis pipeline:
       1. NLP analysis already done (passed in as nlp_result)
-      2. Try Ollama LLM to generate detailed explanation
-      3. Merge LLM output with NLP results
-      4. Fall back to NLP-only result if LLM unavailable
+      2. Call Gemini API for rich explanation generation
+      3. Override Gemini score with NLP score (more accurate)
+      4. Fall back to NLP-only result if Gemini unavailable
     """
-    from rag.prompt_builder import build_analysis_prompt_fallback
-
     print(f"\n{'='*60}")
-    print(f"[VidhiAI] Starting LLM analysis")
-    print(f"[VidhiAI] NLP available: {nlp_result is not None}")
-    print(f"[VidhiAI] Model: {OLLAMA_MODEL}")
+    print(f"[VidhiAI] Starting Gemini LLM analysis")
+    print(f"[VidhiAI] API Key set: {bool(GEMINI_API_KEY)}")
     print(f"{'='*60}")
 
-    # If NLP ran, show its results
     if nlp_result:
         sd = nlp_result.get("score_data", {})
-        print(f"[VidhiAI] NLP Score : {sd.get('score')} | Risk: {sd.get('risk_level')}")
-        print(f"[VidhiAI] NLP Missing: {nlp_result.get('missing_clauses', [])}")
+        print(f"[VidhiAI] NLP Score: {sd.get('score')} | Risk: {sd.get('risk_level')}")
+        print(f"[VidhiAI] Missing  : {nlp_result.get('missing_clauses', [])}")
 
-    # Step 1: Check Ollama
-    if not _check_ollama_running():
-        print("[VidhiAI] Ollama not running - using NLP-only result")
+    # No API key — use NLP result directly
+    if not GEMINI_API_KEY:
+        print("[VidhiAI] No Gemini API key — using NLP-only result")
         if nlp_result:
             return _build_result_from_nlp(nlp_result, contract_type)
-        return _build_fallback_simulation(prompt)
+        return _build_simple_fallback(prompt)
 
-    models = _get_available_models()
-    print(f"[VidhiAI] Ollama models: {models}")
+    # Call Gemini
+    raw = _call_gemini(prompt, timeout=60)
 
-    if models and OLLAMA_MODEL not in models:
-        print(f"[VidhiAI] Model '{OLLAMA_MODEL}' not found - run: ollama pull {OLLAMA_MODEL}")
-        if nlp_result:
-            return _build_result_from_nlp(nlp_result, contract_type)
-        return _build_fallback_simulation(prompt)
-
-    # Step 2: Attempt 1 — primary prompt
-    print("[VidhiAI] Attempt 1: primary prompt...")
-    raw1 = _call_llama(prompt, timeout=600)
-    if raw1:
-        result1 = _extract_json(raw1)
-        if result1 and _validate_result(result1):
-            # Merge NLP score into LLM result (NLP score is more accurate)
+    if raw:
+        result = _extract_json(raw)
+        if result and _validate_result(result):
+            # Override LLM score with more accurate NLP score
             if nlp_result:
                 sd = nlp_result.get("score_data", {})
-                result1["compliance_score"] = sd.get("score", result1["compliance_score"])
-                result1["risk_level"]       = sd.get("risk_level", result1["risk_level"])
-                # Add NLP-detected risks if LLM missed them
-                nlp_risks = nlp_result.get("risk_phrases", [])
-                if nlp_risks and not result1.get("detected_risks"):
-                    result1["detected_risks"] = [
+                result["compliance_score"] = sd.get("score", result["compliance_score"])
+                result["risk_level"]       = sd.get("risk_level", result["risk_level"])
+                # Use NLP missing clauses if LLM missed them
+                if not result.get("missing_clauses") and nlp_result.get("missing_clauses"):
+                    result["missing_clauses"] = nlp_result["missing_clauses"]
+                # Add NLP risks if LLM found none
+                if not result.get("detected_risks") and nlp_result.get("risk_phrases"):
+                    result["detected_risks"] = [
                         {"risk": r["risk"], "severity": r["severity"], "section": r["section"]}
-                        for r in nlp_risks[:5]
+                        for r in nlp_result["risk_phrases"][:5]
                     ]
-            print(f"[VidhiAI] SUCCESS (attempt 1) | Score: {result1['compliance_score']} | Risk: {result1['risk_level']}")
-            return result1
+            print(f"[VidhiAI] Gemini SUCCESS | Score: {result['compliance_score']} | Risk: {result['risk_level']}")
+            return result
+        else:
+            print("[VidhiAI] Gemini JSON parsing failed — using NLP fallback")
+    else:
+        print("[VidhiAI] Gemini returned no response — using NLP fallback")
 
-    # Step 3: Attempt 2 — fallback prompt
-    print("[VidhiAI] Attempt 2: fallback prompt...")
-    contract_match = re.search(r'CONTRACT TEXT.*?\n([\s\S]*?)(?=TASK:|SCORING|$)', prompt)
-    laws_match     = re.search(r'APPLICABLE LAWS.*?\n([\s\S]*?)(?=CONTRACT TEXT|$)', prompt)
-    contract_text  = contract_match.group(1).strip() if contract_match else prompt[:2000]
-    laws_text      = laws_match.group(1).strip()     if laws_match     else ""
-
-    fallback_prompt = build_analysis_prompt_fallback(
-        contract_text, laws_text, contract_type, nlp_result
-    )
-    raw2 = _call_llama(fallback_prompt, timeout=600)
-    if raw2:
-        result2 = _extract_json(raw2)
-        if result2 and _validate_result(result2):
-            if nlp_result:
-                sd = nlp_result.get("score_data", {})
-                result2["compliance_score"] = sd.get("score", result2["compliance_score"])
-                result2["risk_level"]       = sd.get("risk_level", result2["risk_level"])
-            print(f"[VidhiAI] SUCCESS (attempt 2) | Score: {result2['compliance_score']} | Risk: {result2['risk_level']}")
-            return result2
-
-    # Step 4: NLP-only fallback
-    print("[VidhiAI] LLM failed - using NLP-only result")
+    # Fallback to NLP-only
     if nlp_result:
         return _build_result_from_nlp(nlp_result, contract_type)
-    return _build_fallback_simulation(prompt)
+    return _build_simple_fallback(prompt)
 
 
-def _build_fallback_simulation(prompt: str) -> dict:
-    """Last resort fallback using simple keyword detection."""
+def _build_simple_fallback(prompt: str) -> dict:
+    """Keyword-based fallback when both Gemini and NLP are unavailable."""
     prompt_lower = prompt.lower()
     signals = sum([
         any(w in prompt_lower for w in ["terminat", "notice period"]),
@@ -312,9 +292,9 @@ def _build_fallback_simulation(prompt: str) -> dict:
     return {
         "compliance_score": score,
         "risk_level":       risk_level,
-        "missing_clauses":  ["Termination clause", "Dispute resolution clause"],
-        "detected_risks":   [{"risk": "Analysis ran in fallback mode", "severity": "Low", "section": "General"}],
-        "explanation":      f"Contract scored {score}/100 ({risk_level} risk). Run full NLP analysis for detailed results.",
+        "missing_clauses":  [],
+        "detected_risks":   [{"risk": "Basic analysis only", "severity": "Low", "section": "General"}],
+        "explanation":      f"Contract scored {score}/100 ({risk_level} risk). Add GEMINI_API_KEY to .env for full AI analysis.",
         "referenced_laws":  ["Indian Contract Act, 1872"],
-        "recommendations":  ["Install spaCy for full NLP analysis: pip install spacy"],
+        "recommendations":  ["Add GEMINI_API_KEY to .env for full AI-powered analysis"],
     }
