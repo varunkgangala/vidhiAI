@@ -195,14 +195,18 @@ def inject_custom_css():
         margin-bottom: 1.5rem;
     }
     
-    /* Labels Visibility */
-    label, [data-testid="stWidgetLabel"] p {
+    /* Labels and Option Text Visibility */
+    label, [data-testid="stWidgetLabel"] p, .stApp [data-testid="stMarkdownContainer"] p, .stApp [data-testid="stMarkdownContainer"] li, .stApp [data-testid="stMarkdownContainer"] span {
         color: #0d1b2a !important;
-        font-weight: 600 !important;
     }
     
-    /* Keep Sidebar Labels White */
-    section[data-testid="stSidebar"] label, section[data-testid="stSidebar"] [data-testid="stWidgetLabel"] p {
+    /* Keep Sidebar Text and Labels White */
+    section[data-testid="stSidebar"] label, 
+    section[data-testid="stSidebar"] [data-testid="stWidgetLabel"] p,
+    section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p, 
+    section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] li, 
+    section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] span,
+    section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] div {
         color: #ffffff !important;
     }
     
