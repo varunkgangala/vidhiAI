@@ -35,217 +35,336 @@ st.set_page_config(
 
 # Custom premium styling injection
 def inject_custom_css():
-    st.markdown("""
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Source+Sans+3:wght@300;400;500;600&display=swap');
-    
-    /* Global Background and Fonts */
+    st.markdown(""" <style>
+
+    ```
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+    /* ==========================================================
+    APP FOUNDATION
+    ========================================================== */
+
     .stApp {
-        background-color: #f5f0e8 !important;
-        font-family: 'Source Sans 3', sans-serif !important;
-        color: #1a1a2e !important;
+        background-color: #f8f5ef;
+        color: #1e293b;
+        font-family: 'Inter', sans-serif;
     }
-    
-    /* Typography */
-    h1, h2, h3, .playfair {
+
+    .main .block-container {
+        padding-top: 2rem;
+        max-width: 1400px;
+    }
+
+    /* ==========================================================
+    TYPOGRAPHY
+    ========================================================== */
+
+    h1, h2, h3, h4, h5, h6 {
         font-family: 'Playfair Display', serif !important;
         color: #0d1b2a !important;
+        font-weight: 700 !important;
     }
-    
-    /* Sidebar Styling */
+
+    p, li {
+        color: #475569;
+        line-height: 1.7;
+    }
+
+    /* ==========================================================
+    SIDEBAR
+    ========================================================== */
+
     section[data-testid="stSidebar"] {
-        background-color: #0d1b2a !important;
+        background: #0d1b2a !important;
+        border-right: 2px solid #c9a84c;
+    }
+
+    section[data-testid="stSidebar"] h1,
+    section[data-testid="stSidebar"] h2,
+    section[data-testid="stSidebar"] h3,
+    section[data-testid="stSidebar"] p,
+    section[data-testid="stSidebar"] span,
+    section[data-testid="stSidebar"] label,
+    section[data-testid="stSidebar"] div {
         color: #ffffff !important;
     }
-    section[data-testid="stSidebar"] h1, section[data-testid="stSidebar"] h2, section[data-testid="stSidebar"] h3, section[data-testid="stSidebar"] label, section[data-testid="stSidebar"] p {
-        color: #ffffff !important;
-    }
-    section[data-testid="stSidebar"] button {
-        background-color: #c9a84c !important;
-        color: #0d1b2a !important;
-        border-radius: 8px !important;
-        font-weight: 600 !important;
-    }
-    
-    /* Cards */
-    .card {
-        background: #ffffff;
-        border-radius: 16px;
-        box-shadow: 0 4px 24px rgba(13,27,42,0.12);
-        border: 1px solid rgba(212,201,176,0.4);
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
-    }
-    
-    .card-header-custom {
-        background: #0d1b2a;
-        color: #ffffff;
-        padding: 0.75rem 1.25rem;
-        border-radius: 16px 16px 0 0;
-        margin: -1.5rem -1.5rem 1.5rem -1.5rem;
-        font-family: 'Playfair Display', serif;
-        font-size: 1.15rem;
-        font-weight: 600;
-        border-bottom: 2px solid #c9a84c;
-    }
-    
-    /* Badges */
-    .badge {
-        display: inline-flex;
-        align-items: center;
-        padding: 0.3rem 0.75rem;
-        border-radius: 20px;
-        font-size: 0.78rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.8px;
-    }
-    .badge-high { background: #fde8e8; color: #c0392b; border: 1px solid #f5c6c6; }
-    .badge-medium { background: #fef3d7; color: #d68910; border: 1px solid #fce8a0; }
-    .badge-low { background: #d4f4e3; color: #1e8449; border: 1px solid #a8e6c5; }
-    
-    /* Statistics Cards */
-    .stat-card {
-        background: #ffffff;
-        border-radius: 16px;
-        padding: 1.5rem;
-        box-shadow: 0 4px 24px rgba(13,27,42,0.12);
-        border: 1px solid rgba(212,201,176,0.4);
+
+    /* ==========================================================
+    HERO
+    ========================================================== */
+
+    .hero {
+        background: linear-gradient(
+            135deg,
+            #0d1b2a 0%,
+            #1b263b 50%,
+            #243b55 100%
+        );
+        padding: 4rem 2rem;
+        border-radius: 24px;
         text-align: center;
+        margin-bottom: 2rem;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+    }
+
+    .hero h1 {
+        color: white !important;
+        font-size: 3rem !important;
         margin-bottom: 1rem;
     }
-    
-    .stat-label {
-        font-size: 0.78rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.8px;
-        color: #6b7280;
-        margin-bottom: 0.25rem;
-    }
-    
-    .stat-value {
-        font-family: 'Playfair Display', serif;
-        font-size: 2.2rem;
-        font-weight: 700;
-        color: #0d1b2a;
-    }
-    
-    /* Explanation block */
-    .explanation-box {
-        background: linear-gradient(135deg, rgba(13,27,42,0.03), rgba(201,168,76,0.06));
-        border: 1px solid #d4c9b0;
-        border-left: 4px solid #c9a84c;
-        border-radius: 0 8px 8px 0;
-        padding: 1.25rem 1.5rem;
-        font-size: 0.93rem;
-        line-height: 1.75;
-        color: #1a1a2e;
-        white-space: pre-line;
-    }
-    
-    /* Referenced Laws */
-    .law-ref {
-        background: rgba(13,27,42,0.07);
-        border: 1px solid rgba(13,27,42,0.12);
-        color: #0d1b2a;
-        padding: 0.3rem 0.75rem;
-        border-radius: 20px;
-        font-size: 0.82rem;
-        font-weight: 500;
-        display: inline-block;
-        margin: 0.25rem;
-    }
-    
-    /* Hero section */
-    .hero {
-        background-color: #0d1b2a;
-        padding: 4rem 2rem;
-        text-align: center;
-        border-radius: 16px;
-        color: #ffffff;
-        margin-bottom: 2rem;
-        position: relative;
-    }
-    
-    .hero h1 {
-        color: #ffffff !important;
-        font-size: 2.8rem !important;
-        margin-bottom: 1rem !important;
-    }
-    
+
     .hero p {
-        color: rgba(255,255,255,0.8) !important;
-        font-size: 1.1rem !important;
-        max-width: 700px;
-        margin: 0 auto 1.5rem auto !important;
+        color: rgba(255,255,255,0.9) !important;
+        font-size: 1.15rem;
+        max-width: 800px;
+        margin: auto;
     }
-    
+
     .hero-eyebrow {
         display: inline-block;
         background: rgba(201,168,76,0.15);
-        border: 1px solid rgba(201,168,76,0.4);
-        color: #c9a84c;
-        padding: 0.35rem 1rem;
-        border-radius: 20px;
+        color: #f5d67b !important;
+        border: 1px solid rgba(201,168,76,0.35);
+        border-radius: 999px;
+        padding: 8px 16px;
         font-size: 0.8rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 1.5px;
-        margin-bottom: 1.5rem;
+        font-weight: 700;
+        letter-spacing: 1px;
+        margin-bottom: 1rem;
     }
-    
-    /* Labels and Option Text Visibility */
-    label, [data-testid="stWidgetLabel"] p, .stApp [data-testid="stMarkdownContainer"] p, .stApp [data-testid="stMarkdownContainer"] li, .stApp [data-testid="stMarkdownContainer"] span {
+
+    /* ==========================================================
+    CARDS
+    ========================================================== */
+
+    .card {
+        background: white;
+        border-radius: 20px;
+        padding: 1.5rem;
+        border: 1px solid #e5e7eb;
+        box-shadow: 0 4px 20px rgba(15,23,42,0.06);
+        height: 100%;
+        transition: all 0.2s ease;
+    }
+
+    .card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 30px rgba(15,23,42,0.10);
+    }
+
+    .card h3 {
         color: #0d1b2a !important;
     }
-    
-    /* Keep Sidebar Text and Labels White */
-    section[data-testid="stSidebar"] label, 
-    section[data-testid="stSidebar"] [data-testid="stWidgetLabel"] p,
-    section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p, 
-    section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] li, 
-    section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] span,
-    section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] div {
-        color: #ffffff !important;
+
+    .card p {
+        color: #64748b !important;
     }
-    
-    /* Hero Content Visibility Overrides */
-    .hero h1, .hero p, .hero span, .hero div, .hero label {
-        color: #ffffff !important;
+
+    /* ==========================================================
+    STAT CARDS
+    ========================================================== */
+
+    .stat-card {
+        background: white;
+        border-radius: 20px;
+        padding: 1.5rem;
+        text-align: center;
+        border: 1px solid #e5e7eb;
+        box-shadow: 0 4px 20px rgba(15,23,42,0.06);
     }
-    .hero-eyebrow {
-        color: #c9a84c !important;
+
+    .stat-label {
+        color: #64748b;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-weight: 700;
     }
-    
-    /* Input Box Text Color (White) */
-    div[data-baseweb="input"] input, textarea, div[data-baseweb="textarea"] textarea {
-        color: #ffffff !important;
+
+    .stat-value {
+        color: #0d1b2a;
+        font-size: 2.2rem;
+        font-family: 'Playfair Display', serif;
+        font-weight: 700;
     }
-    
-    /* Buttons Override */
-    div.stButton > button, div[data-testid="stFormSubmitButton"] > button {
-        background-color: #0d1b2a !important;
-        color: #ffffff !important;
-        border-radius: 8px !important;
-        padding: 0.5rem 1.5rem !important;
-        font-weight: 600 !important;
-        border: 1px solid transparent !important;
-        transition: all 0.2s ease !important;
+
+    /* ==========================================================
+    INPUTS
+    ========================================================== */
+
+    .stTextInput input,
+    .stTextArea textarea,
+    div[data-baseweb="input"] input,
+    div[data-baseweb="textarea"] textarea {
+        background: white !important;
+        color: #0d1b2a !important;
+        border-radius: 12px !important;
+        border: 1px solid #d1d5db !important;
     }
-    div.stButton > button:hover, div[data-testid="stFormSubmitButton"] > button:hover {
-        background-color: #243b55 !important;
-        color: #ffffff !important;
-        border-color: #c9a84c !important;
+
+    .stTextInput label,
+    .stTextArea label {
+        color: #0d1b2a !important;
+        font-weight: 600;
     }
-    
-    /* Button Text Visibility Overrides */
-    div.stButton button p, div.stButton button span, 
-    div[data-testid="stFormSubmitButton"] button p, div[data-testid="stFormSubmitButton"] button span {
-        color: #ffffff !important;
+
+    /* ==========================================================
+    SELECTBOX
+    ========================================================== */
+
+    div[data-baseweb="select"] * {
+        color: #0d1b2a !important;
     }
+
+    /* ==========================================================
+    RADIO
+    ========================================================== */
+
+    .stRadio label {
+        color: #0d1b2a !important;
+        font-weight: 500;
+    }
+
+    /* ==========================================================
+    BUTTONS
+    ========================================================== */
+
+    .stButton > button,
+    .stFormSubmitButton > button,
+    div[data-testid="stFormSubmitButton"] > button {
+        background: #0d1b2a !important;
+        color: white !important;
+        border: 2px solid #c9a84c !important;
+        border-radius: 12px !important;
+        font-weight: 700 !important;
+        transition: all 0.25s ease;
+    }
+
+    .stButton > button:hover,
+    .stFormSubmitButton > button:hover {
+        background: #243b55 !important;
+        border-color: #f5d67b !important;
+        color: white !important;
+    }
+
+    .stButton button span,
+    .stButton button p,
+    .stButton button div {
+        color: white !important;
+    }
+
+    /* ==========================================================
+    FILE UPLOADER
+    ========================================================== */
+
+    [data-testid="stFileUploader"] {
+        background: white;
+        border-radius: 16px;
+        padding: 1rem;
+        border: 1px solid #d1d5db;
+    }
+
+    [data-testid="stFileUploader"] * {
+        color: #0d1b2a !important;
+    }
+
+    /* ==========================================================
+    ALERTS
+    ========================================================== */
+
+    [data-testid="stAlert"] {
+        border-radius: 12px;
+    }
+
+    /* ==========================================================
+    EXPANDER
+    ========================================================== */
+
+    details {
+        background: white;
+        border-radius: 12px;
+        border: 1px solid #e5e7eb;
+        padding: 0.5rem;
+    }
+
+    details summary {
+        color: #0d1b2a !important;
+        font-weight: 600;
+    }
+
+    /* ==========================================================
+    BADGES
+    ========================================================== */
+
+    .badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 700;
+    }
+
+    .badge-high {
+        background: #fee2e2;
+        color: #b91c1c;
+    }
+
+    .badge-medium {
+        background: #fef3c7;
+        color: #b45309;
+    }
+
+    .badge-low {
+        background: #dcfce7;
+        color: #15803d;
+    }
+
+    /* ==========================================================
+    LAW TAGS
+    ========================================================== */
+
+    .law-ref {
+        display: inline-block;
+        padding: 6px 12px;
+        margin: 4px;
+        border-radius: 999px;
+        background: #eef2ff;
+        color: #3730a3 !important;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+    /* ==========================================================
+    REPORT BOX
+    ========================================================== */
+
+    .explanation-box {
+        background: white;
+        border-left: 4px solid #c9a84c;
+        border-radius: 12px;
+        padding: 1.5rem;
+        color: #334155;
+        line-height: 1.8;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.05);
+    }
+
+    /* ==========================================================
+    TABLES
+    ========================================================== */
+
+    table {
+        color: #0d1b2a !important;
+    }
+
+    [data-testid="stDataFrame"] {
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
     </style>
     """, unsafe_allow_html=True)
+
+
 
 # Helper to render circular score ring via SVG
 def render_score_ring(score, risk_level):
