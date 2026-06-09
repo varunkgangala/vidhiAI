@@ -210,6 +210,14 @@ def inject_custom_css():
         color: #ffffff !important;
     }
     
+    /* Hero Content Visibility Overrides */
+    .hero h1, .hero p, .hero span, .hero div, .hero label {
+        color: #ffffff !important;
+    }
+    .hero-eyebrow {
+        color: #c9a84c !important;
+    }
+    
     /* Input Box Text Color (White) */
     div[data-baseweb="input"] input, textarea, div[data-baseweb="textarea"] textarea {
         color: #ffffff !important;
@@ -229,6 +237,12 @@ def inject_custom_css():
         background-color: #243b55 !important;
         color: #ffffff !important;
         border-color: #c9a84c !important;
+    }
+    
+    /* Button Text Visibility Overrides */
+    div.stButton button p, div.stButton button span, 
+    div[data-testid="stFormSubmitButton"] button p, div[data-testid="stFormSubmitButton"] button span {
+        color: #ffffff !important;
     }
     </style>
     """, unsafe_allow_html=True)
